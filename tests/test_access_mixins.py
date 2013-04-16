@@ -118,6 +118,34 @@ class TestLoginRequiredMixin(TestViewHelper):
         assert resp.status_code == 200
         assert force_text(resp.content) == 'OK'
 
+class TestUserPassesTestMixin(_TestAccessBasicsMixin, test.TestCase):
+    """
+    Tests for PermissionRequiredMixin.
+    """
+    view_class = UserPassesTestMixin
+    view_url = '/permission_required/'
+
+    def build_authorized_user(self):
+        return make_user(permissions=['auth.add_user'])
+
+    def build_unauthorized_user(self):
+        return make_user()
+
+    def test_invalid_callable(self):
+        """
+        ImproperlyConfigured exception should be raised in two situations:
+        if permission is None or if permission has invalid name.
+        """
+        with self.assertRaises(ImproperlyConfigured):
+            self.dispatch_view(self.build_request(), user_passes_test=None)
+
+    def test_rule(self):
+        user_test = lambda u: u.has_perm('tests.add_article') 
+        user = make_user(permissions=['tests.add_article'])
+        req = self.build_request(user=user)
+
+        resp = self.dispatch_view(req, user_passes_test=user_test)
+        self.assertEqual('OK', force_text(resp.content))
 
 class TestPermissionRequiredMixin(_TestAccessBasicsMixin, test.TestCase):
     """

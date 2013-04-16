@@ -159,6 +159,55 @@ class PermissionRequiredMixin(AccessMixin):
             *args, **kwargs)
 
 
+
+class UserPassesTestMixin(AccessMixin):
+    """
+    View mixin which verifies that the logged in user passes test.
+
+    Class Settings
+    `users_passes_test` - callable that will be called with current user as argument
+    `login_url` - the login url of site
+    `redirect_field_name` - defaults to "next"
+    `raise_exception` - defaults to False - raise 403 if set to True
+
+    Example Usage
+
+        class SomeView(UserPassesTestMixin, ListView):
+            ...
+            # required
+            user_passes_test = lambda u: u.is_manager
+
+            # optional
+            login_url = "/signup/"
+            redirect_field_name = "hollaback"
+            raise_exception = True
+            ...
+    """
+    user_passes_test = None  # Default required perms to none
+
+    def dispatch(self, request, *args, **kwargs):
+        # Make sure that the permission_required attribute is set on the
+        # view, or raise a configuration error.
+        if self.user_passes_test is None:
+            raise ImproperlyConfigured("'UserPassesTestMixin' requires "
+                "'user_passes_test' attribute to be set.")
+
+        # Check to see if the request's user has the required permission.
+        passed_test = self.user_passes_test(request.user)
+
+        if not passed_test:  # If the user lacks the permission
+            if self.raise_exception:  # *and* if an exception was desired
+                raise PermissionDenied  # return a forbidden response.
+            else:
+                return redirect_to_login(request.get_full_path(),
+                                         self.get_login_url(),
+                                         self.get_redirect_field_name())
+
+        return super(UserPassesTestMixin, self).dispatch(request,
+            *args, **kwargs)
+
+
+
 class MultiplePermissionsRequiredMixin(AccessMixin):
     """
     View mixin which allows you to specify two types of permission
